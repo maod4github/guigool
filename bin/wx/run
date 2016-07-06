@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+
+require('runkoa')(`${__dirname}/www`);
