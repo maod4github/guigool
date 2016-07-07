@@ -55,7 +55,7 @@ wechat.api = {
         delete: `${ wechat.api.url.prefix }/tags/delete`,
       },
       // 查找多个用户，根据标签id
-      findMoreByTagId: `${ wechat.api.url.prefix }/user/tag/get`,
+      findOpenIdsByTagId: `${ wechat.api.url.prefix }/user/tag/get`,
       // 给多个用户打标签
       taggingMore: `${ wechat.api.url.prefix }/tags/members/batchtagging`,
       // 给多个用户取消标签
@@ -222,6 +222,8 @@ wechat.api = {
           // console.log( await wechat.api.user.tag.findAll() );
           // await wechat.api.user.tag.delete( 2 );
           // console.log( await wechat.api.user.tag.findAll() );
+          // console.log( await wechat.api.user.findOpenIdsByTagId( 2 ) );
+          // console.log( await wechat.api.user.findOneBaseInfo( 'olXq3vzt-VM4jFt-4G3cf57IwRzY' ) );
           wechat.api.message.replyer.replyTextMsg( { toUserName: wechat.storage.reqMsg.FromUserName, content: '肆' } );
         }
         else if ( content === '5' ) {
@@ -418,7 +420,7 @@ wechat.api = {
         let accessToken = await wechat.api.entry.getAccessToken();
         let url = `${ wechat.api.url.user.tag.findAll }?access_token=${ accessToken }`;
         return await new Promise( ( resolve, reject ) => {
-          request.post( url, ( err, res, body ) => {
+          request.get( url, ( err, res, body ) => {
             if ( err ) {
               reject( err );
             }
@@ -468,22 +470,184 @@ wechat.api = {
         } );
       },
     },
-    // 查找多个用户，根据标签id
-    findMoreByTagId: `${ wechat.api.url.prefix }/user/tag/get`,
-    // 给多个用户打标签
-    taggingMore: `${ wechat.api.url.prefix }/tags/members/batchtagging`,
-    // 给多个用户取消标签
-    untaggingMore: `${ wechat.api.url.prefix }/tags/members/batchuntagging`,
-    // 查找某个用户所有的标签
-    findOneTagIds: `${ wechat.api.url.prefix }/tags/getidlist`,
-    // 给某个用户备注
-    remarkOne: `${ wechat.api.url.prefix }/user/info/updateremark`,
+    // 查找openId集，根据标签id
+    findOpenIdsByTagId: async ( tagId ) => {
+      let accessToken = await wechat.api.entry.getAccessToken();
+      let url = `${ wechat.api.url.user.findOpenIdsByTagId }?access_token=${ accessToken }`;
+      let form = {
+        tagid: tagId,
+      };
+      return await new Promise( ( resolve, reject ) => {
+        request.post( url, { form: form }, ( err, res, body ) => {
+          if ( err ) {
+            reject( err );
+          }
+          else {
+            let result = JSON.parse( body );
+            if ( result.errcode ) {
+              resolve( undefined );
+            }
+            else {
+              resolve( result.data.openid );
+            }
+          }
+        } );
+      } );
+    },
+    // 给多个用户打标签, return true or false.
+    taggingMore: async ( openIds, tagId ) => {
+      let accessToken = await wechat.api.entry.getAccessToken();
+      let url = `${ wechat.api.url.user.taggingMore }?access_token=${ accessToken }`;
+      let form = {
+        openid_list: openIds,
+        tagid: tagId
+      };
+      return await new Promise( ( resolve, reject ) => {
+        request.post( url, { form: form }, ( err, res, body ) => {
+          if ( err ) {
+            reject( err );
+          }
+          else {
+            resolve( JSON.parse( body ).errcode === 0 );
+          }
+        } );
+      } );
+    },
+    // 给多个用户取消标签, return true or false.
+    untaggingMore: async ( openIds, tagId ) => {
+      let accessToken = await wechat.api.entry.getAccessToken();
+      let url = `${ wechat.api.url.user.untaggingMore }?access_token=${ accessToken }`;
+      let form = {
+        openid_list: openIds,
+        tagid: tagId
+      };
+      return await new Promise( ( resolve, reject ) => {
+        request.post( url, { form: form }, ( err, res, body ) => {
+          if ( err ) {
+            reject( err );
+          }
+          else {
+            resolve( JSON.parse( body ).errcode === 0 );
+          }
+        } );
+      } );
+    },
+    // 查找某个用户所有的标签, return tagIds or undefined.
+    findOneTagIds: async ( openId ) => {
+      let accessToken = await wechat.api.entry.getAccessToken();
+      let url = `${ wechat.api.url.user.findOneTagIds }?access_token=${ accessToken }`;
+      let form = {
+        openid: openId,
+      };
+      return await new Promise( ( resolve, reject ) => {
+        request.post( url, { form: form }, ( err, res, body ) => {
+          if ( err ) {
+            reject( err );
+          }
+          else {
+            let result = JSON.parse( body );
+            if ( result.errcode ) {
+              resolve( undefined );
+            }
+            else {
+              resolve( result.tagid_list );
+            }
+          }
+        } );
+      } );
+    },
+    // 给某个用户备注, return true or false.
+    remarkOne: async ( openId, remark ) => {
+      let accessToken = await wechat.api.entry.getAccessToken();
+      let url = `${ wechat.api.url.user.remarkOne }?access_token=${ accessToken }`;
+      let form = {
+        openid: openId,
+        remark: remark,
+      };
+      return await new Promise( ( resolve, reject ) => {
+        request.post( url, { form: form }, ( err, res, body ) => {
+          if ( err ) {
+            reject( err );
+          }
+          else {
+            resolve( JSON.parse( body ).errcode === 0 );
+          }
+        } );
+      } );
+    },
     // 查找某个用户的基本信息
-    findOneBaseInfo: `${ wechat.api.url.prefix }/user/info`,
+    findOneBaseInfo: async ( openId ) => {
+      let accessToken = await wechat.api.entry.getAccessToken();
+      let url = `${ wechat.api.url.user.findOneBaseInfo }?access_token=${ accessToken }&openid=${ openId }`;
+      return await new Promise( ( resolve, reject ) => {
+        request.get( url, ( err, res, body ) => {
+          if ( err ) {
+            reject( err );
+          }
+          else {
+            let result = JSON.parse( body );
+            if ( result.errcode ) {
+              resolve( undefined );
+            }
+            else {
+              resolve( result );
+            }
+          }
+        } );
+      } );
+    },
     // 查找多个用户的基本信息
-    findMoreBaseInfo: `${ wechat.api.url.prefix }/user/info/batchget`,
-    // 查找多个用户
-    findMore: `${ wechat.api.url.prefix }/user/get`,
+    findMoreBaseInfo: async ( openIds ) => {
+      let accessToken = await wechat.api.entry.getAccessToken();
+      let url = `${ wechat.api.url.user.findMoreBaseInfo }?access_token=${ accessToken }`;
+      let form = {
+        user_list: openIds.map( ( openId ) => {
+          return { openid: openId };
+        } ),
+      };
+      return await new Promise( ( resolve, reject ) => {
+        request.post( url, { form: form }, ( err, res, body ) => {
+          if ( err ) {
+            reject( err );
+          }
+          else {
+            let result = JSON.parse( body );
+            if ( result.errcode ) {
+              resolve( undefined );
+            }
+            else {
+              resolve( result.user_info_list );
+            }
+          }
+        } );
+      } );
+    },
+    // 查找多个用户, return {"total":2,"count":2,"openIds":["","OPENID1","OPENID2"],"nextOpenId":"NEXT_OPENID"} or undefined;
+    findMore: async ( nextOpenId ) => {
+      let accessToken = await wechat.api.entry.getAccessToken();
+      let url = `${ wechat.api.url.user.findMore }?access_token=${ accessToken }&next_openid=${ nextOpenId }`;
+      return await new Promise( ( resolve, reject ) => {
+        request.get( url, ( err, res, body ) => {
+          if ( err ) {
+            reject( err );
+          }
+          else {
+            let result = JSON.parse( body );
+            if ( result.errcode ) {
+              resolve( undefined );
+            }
+            else {
+              resolve( {
+                total: result.total,
+                count: result.count,
+                openIds: result.data.openid,
+                nextOpenId: result.next_openid,
+              } );
+            }
+          }
+        } );
+      } );
+    },
   },
 };
 
